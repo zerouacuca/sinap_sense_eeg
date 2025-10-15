@@ -4,10 +4,9 @@
     1. Lê os dados brutos do arquivo CSV associado.
     2. Ajusta o timestamp para o formato datetime apropriado.
     3. Aplica filtros digitais (highpass, lowpass, bandpass, notch) ao sinal.
-    4. Calcula o espectrograma do sinal usando STFT.
-    5. Calcula a potência média em diferentes bandas de frequência (delta, theta, alpha, beta, gamma).
-    6. Salva os resultados processados e métricas em registros do modelo EEGChannelAnalysis.
-    7. Atualiza o status do objeto eeg_data para indicar que o processamento foi concluído.
+    4. Calcula a potência média em diferentes bandas de frequência (delta, theta, alpha, beta, gamma).
+    5. Salva os resultados processados e métricas em registros do modelo EEGChannelAnalysis.
+    6. Atualiza o status do objeto eeg_data para indicar que o processamento foi concluído.
     Parâmetros:
         eeg_data (EEGData): Instância contendo informações do arquivo de EEG e metadados necessários para o processamento.
     Observações:
@@ -18,7 +17,7 @@
 import pandas as pd
 import numpy as np
 import json
-from scipy.signal import butter, lfilter, iirnotch , stft
+from scipy.signal import butter, lfilter, iirnotch
 from .models import EEGChannelAnalysis
 
 
@@ -98,21 +97,6 @@ def process_eeg_data(eeg_data, event=None, start_time=None, end_time=None):
             'beta': (13, 30),
             'gamma': (30, 40)
         }
-
-        # Calcula o espectrograma
-        f,t, Zxx = stft(data, fs=fs, nperseg=256)
-            
-        # Normaliza e prepara os dados
-        spectrogram = {
-                'freq': f.tolist(),
-                'time': t.tolist(),
-                'magnitude': np.abs(Zxx).tolist(),
-                'config': {
-                    'fmin': 0,
-                    'fmax': 40,
-                    'cmap': 'Viridis'
-                }
-            }
         
         power_metrics = {}
         for banda, (low, high) in bandas.items():
@@ -129,7 +113,6 @@ def process_eeg_data(eeg_data, event=None, start_time=None, end_time=None):
             lowpass=json.dumps({'x': timestamp.tolist(), 'y': lowpass.tolist()}),
             bandpass=json.dumps({'x': timestamp.tolist(), 'y': bandpass.tolist()}),
             notch=json.dumps({'x': timestamp.tolist(), 'y': notch.tolist()}),
-            spectrogram_data=json.dumps(spectrogram),
             **power_metrics
         )
     

@@ -35,13 +35,6 @@ class EEGChannelAnalysis(models.Model):
     alpha_power = models.FloatField()
     beta_power = models.FloatField()
     gamma_power = models.FloatField()
-    spectrogram_data = models.TextField(null=True, blank=True)  # Novo campo para espectrograma
 
     class Meta:
         ordering = ['channel_name']
-    
-    def get_spectrogram(self):
-        try:
-            return json.loads(self.spectrogram_data) if self.spectrogram_data else None
-        except json.JSONDecodeError:
-            return None

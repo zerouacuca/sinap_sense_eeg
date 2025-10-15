@@ -283,33 +283,6 @@ def dashboard(request, eeg_id):
     sentiment_analysis = analyze_sentiment(analyses, eeg_data.age, eeg_data.sex)
     # Criar gráfico de ondas cerebrais
     brain_waves_plot = create_brain_waves_plot(analyses)
-    # Espectrograma médio
-    all_spectrograms = []
-    for analysis in analyses:
-        spectrogram = analysis.get_spectrogram()
-        if spectrogram:
-            all_spectrograms.append(spectrogram)
-    
-    if all_spectrograms:
-        # Calcula a média dos espectrogramas
-        avg_mag = np.mean([np.array(s['magnitude']) for s in all_spectrograms], axis=0)
-        
-        fig = go.Figure(data=go.Heatmap(
-            z=10 * np.log10(avg_mag),  # Conversão para dB
-            x=all_spectrograms[0]['time'],
-            y=all_spectrograms[0]['freq'],
-            colorscale='Viridis'
-        ))
-        
-        fig.update_layout(
-            title='Espectrograma Médio',
-            xaxis_title='Tempo (s)',
-            yaxis_title='Frequência (Hz)',
-            height=400
-        )
-        spectrogram_plot = fig.to_html(full_html=False)
-    else:
-        spectrogram_plot = "<div class='alert alert-info'>Dados do espectrograma não disponíveis</div>"
     
     # Componentes do dashboard
     return render(request, 'dashboard.html', {
@@ -320,7 +293,6 @@ def dashboard(request, eeg_id):
         'topomap_plot': get_topomap(analyses, 'Alpha'),
         'sentiment_analysis': sentiment_analysis,
         'brain_waves_plot': brain_waves_plot,  # Novo gráfico de ondas cerebrais
-        'spectrogram_plot': spectrogram_plot,
         'filter_form': filter_form
     })
 
@@ -392,31 +364,6 @@ def channel_detail(request, channel_id):
         rows=2, cols=1,
         subplot_titles=['Original', 'Notch']
     )
-
-    spect = make_subplots(
-        rows=2, cols=1,
-        subplot_titles=['Original', 'Notch']
-    )
-
-    spectrogram = analysis.get_spectrogram()
-    
-    if spectrogram:
-            spect = go.Figure(data=go.Heatmap(
-            z=10 * np.log10(spectrogram['magnitude']),
-            x=spectrogram['time'],
-            y=spectrogram['freq'],
-            colorscale=spectrogram['config']['cmap']
-        ))
-        
-            spect.update_layout(
-            title=f'Espectrograma - {analysis.channel_name}',
-            xaxis_title='Tempo (s)',
-            yaxis_title='Frequência (Hz)',
-            height=500
-        )
-            spectrogram_plot = spect.to_html(full_html=False)
-    else:
-        spectrogram_plot = None
     
     signals = {
         'Original': json.loads(analysis.raw_signal),

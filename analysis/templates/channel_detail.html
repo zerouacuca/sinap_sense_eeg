@@ -1,4 +1,3 @@
-<!-- templates/channel_detail.html -->
 {% extends 'base.html' %} {% block content %}
 <div class="card">
   <div class="card-header">
@@ -53,11 +52,4 @@
     <li><span class="badge bg-purple">Roxo</span> Notch (60Hz)</li>
   </ul>
 </div>
-
-<script>
-  // Ajuste dinâmico do tamanho do gráfico
-  window.addEventListener("resize", function () {
-    Plotly.Plots.resize(document.getElementById("spectral-plot"));
-  });
-</script>
 {% endblock %}
