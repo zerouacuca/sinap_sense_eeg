@@ -1,292 +1,77 @@
-{% extends 'base.html' %} {% load static %} {% block content %}
+{% extends 'base.html' %}
+{% block content %}
 <div class="container-fluid">
-  <div class="card border-0 shadow-lg">
-    <div class="card-header bg-primary text-white">
-      <div class="row mb-3">
+    <div class="row">
         <div class="col-md-3">
-          <div class="card bg-light">
-            <div class="card-body">
-              <h6 class="card-title text-muted">Idade</h6>
-              <p class="h4">{{ eeg_data.age|default:"-" }} anos</p>
+            <div class="card">
+                <div class="card-header">
+                    <h3>Filtros</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="filter-form">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="event" class="form-label">Evento</label>
+                            <select name="event" id="event" class="form-select">
+                                <option value="">Todos</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="start_time" class="form-label">Início (HH:MM:SS)</label>
+                            <input type="text" name="start_time" id="start_time" class="form-control">
+                        </div>
+                        <div class="mb-3">
+                            <label for="end_time" class="form-label">Fim (HH:MM:SS)</label>
+                            <input type="text" name="end_time" id="end_time" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Aplicar Filtro</button>
+                    </form>
+                </div>
             </div>
-          </div>
         </div>
-        <div class="col-md-3">
-          <div class="card bg-light">
-            <div class="card-body">
-              <h6 class="card-title text-muted">Sexo</h6>
-              <p class="h4">{{ eeg_data.get_sex_display|default:"-" }}</p>
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-header">
+                    <h3>Dashboard de Análise de EEG</h3>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ power_plot|safe }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ topomap_plot|safe }}
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            {{ brain_waves_plot|safe }}
+                        </div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            {{ spectrogram_plot|safe }}
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
-      <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">
-          <i class="fas fa-brain me-2"></i>
-          Análise EEG - {{ eeg_data.original_file.name|truncatechars:30 }}
-        </h2>
-        <div>
-          <a href="{% url 'analysis:upload' %}" class="btn btn-light">
-            <i class="fas fa-file-upload me-1"></i> Novo Upload
-          </a>
-        </div>
-      </div>
     </div>
-
-    <div class="card-body">
-      <!-- Seção de Gráficos -->
-      <div class="row mb-4 g-4">
-        <!-- Gráfico de Potência -->
-        <div class="col-xl-6">
-          <div class="card h-100">
-            <div class="card-header bg-secondary text-white">
-              <h5 class="card-title mb-0">
-                <i class="fas fa-chart-line me-1"></i>
-                Distribuição de Potência por Canal
-              </h5>
-            </div>
-            <div class="card-body">
-              <div id="power-plot">{{ power_plot|safe }}</div>
-            </div>
-          </div>
-        </div>
-        <!-- Topomapa Interativo -->
-        <div class="col-xl-6">
-          <div class="card h-100">
-            <div
-              class="card-header bg-secondary text-white d-flex justify-content-between"
-            >
-              <h5 class="card-title mb-0">
-                <i class="fas fa-map me-1"></i>
-                Mapa de Atividade Cerebral
-              </h5>
-              <div class="dropdown">
-                <button
-                  class="btn btn-sm btn-secondary dropdown-toggle"
-                  type="button"
-                  id="dropdownMenuButton"
-                  data-bs-toggle="dropdown"
-                  aria-expanded="false"
-                >
-                  Selecionar Banda
-                </button>
-                <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
-                  {% for banda in bandas %}
-                  <li>
-                    <a
-                      class="dropdown-item"
-                      href="/update-topomap/?eeg_id={{eeg_data.id}}&banda={{banda}}"
-                    >
-                      {{ banda }}
-                    </a>
-                  </li>
-                  {% endfor %}
-                </ul>
-              </div>
-            </div>
-            <div class="card-body">
-              <div id="topomap-container">{{ topomap_plot|safe }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Novo Gráfico de Ondas Cerebrais -->
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card h-100">
-            <div class="card-header bg-purple text-white">
-              <h5 class="card-title mb-0">
-                <i class="fas fa-wave-square me-1"></i>
-                Distribuição de Ondas Cerebrais
-              </h5>
-            </div>
-            <div class="card-body">
-              <div id="brain-waves-plot">{{ brain_waves_plot|safe }}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="row mb-4">
-        <div class="col-12">
-          <div class="card h-100">
-            <div class="card-header bg-info text-white">
-              <h5 class="card-title mb-0">
-                <i class="fas fa-wave-square me-1"></i>
-                Espectrograma (Análise Tempo-Frequência)
-              </h5>
-            </div>
-            <div class="card-body">{{ spectrogram_plot|safe }}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card border-0 shadow mt-4">
-        <div class="card-header bg-success text-white">
-          <h5 class="card-title mb-0">
-            <i class="fas fa-smile me-1"></i>
-            Análise Emocional
-          </h5>
-        </div>
-        <div class="card-body">
-          <div class="row">
-            <div class="col-md-4 text-center">
-              <div class="display-4">
-                {% if sentiment_analysis.sentiment == "Relaxamento" %} 😌 {%
-                elif "Estresse" in sentiment_analysis.sentiment %} 😰 {% elif
-                "Sonolência" in sentiment_analysis.sentiment %} 😴 {% else %} 😐
-                {% endif %}
-              </div>
-              <h3 class="text-primary mt-2">
-                {{ sentiment_analysis.sentiment }}
-              </h3>
-            </div>
-            <div class="col-md-8">
-              <div class="progress-stacked">
-                <div
-                  class="progress bg-danger"
-                  role="progressbar"
-                  style="width: {{ sentiment_analysis.avg_values.delta|floatformat:2 }}%"
-                >
-                  <div class="progress-bar-text">Delta</div>
-                </div>
-                <div
-                  class="progress bg-warning"
-                  role="progressbar"
-                  style="width: {{ sentiment_analysis.avg_values.theta|floatformat:2 }}%"
-                >
-                  <div class="progress-bar-text">Theta</div>
-                </div>
-                <div
-                  class="progress bg-info"
-                  role="progressbar"
-                  style="width: {{ sentiment_analysis.avg_values.alpha|floatformat:2 }}%"
-                >
-                  <div class="progress-bar-text">Alpha</div>
-                </div>
-                <div
-                  class="progress bg-primary"
-                  role="progressbar"
-                  style="width: {{ sentiment_analysis.avg_values.beta|floatformat:2 }}%"
-                >
-                  <div class="progress-bar-text">Beta</div>
-                </div>
-                <div
-                  class="progress bg-success"
-                  role="progressbar"
-                  style="width: {{ sentiment_analysis.avg_values.gamma|floatformat:2 }}%"
-                >
-                  <div class="progress-bar-text">Gamma</div>
-                </div>
-              </div>
-              <dl class="row mt-3">
-                <dt class="col-sm-3">Dominância Beta</dt>
-                <dd class="col-sm-9">
-                  {{ sentiment_analysis.avg_values.beta|floatformat:4 }}
-                  (Alerta/Atividade Mental)
-                </dd>
-
-                <dt class="col-sm-3">Dominância Alpha</dt>
-                <dd class="col-sm-9">
-                  {{ sentiment_analysis.avg_values.alpha|floatformat:4 }}
-                  (Relaxamento/Calma)
-                </dd>
-              </dl>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Tabela de Canais -->
-      <div class="card border-0 shadow">
-        <div class="card-header bg-info text-white">
-          <h5 class="card-title mb-0">
-            <i class="fas fa-table me-1"></i>
-            Detalhes por Canal EEG
-          </h5>
-        </div>
-        <div class="card-body table-responsive">
-          <table class="table table-hover table-striped align-middle">
-            <thead class="table-dark">
-              <tr>
-                <th>Canal</th>
-                <th>Delta (0.5-4Hz)</th>
-                <th>Theta (4-8Hz)</th>
-                <th>Alpha (8-13Hz)</th>
-                <th>Beta (13-30Hz)</th>
-                <th>Gamma (30-40Hz)</th>
-                <th class="text-end">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for analysis in analyses %}
-              <tr>
-                <td class="fw-bold">{{ analysis.channel_name }}</td>
-                <td>{{ analysis.delta_power|floatformat:4 }}</td>
-                <td>{{ analysis.theta_power|floatformat:4 }}</td>
-                <td class="table-primary">
-                  {{ analysis.alpha_power|floatformat:4 }}
-                </td>
-                <td>{{ analysis.beta_power|floatformat:4 }}</td>
-                <td>{{ analysis.gamma_power|floatformat:4 }}</td>
-                <td class="text-end">
-                  <a
-                    href="{% url 'analysis:channel_detail' analysis.id %}"
-                    class="btn btn-sm btn-outline-primary"
-                  >
-                    <i class="fas fa-search me-1"></i>
-                    Detalhes
-                  </a>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer do Card -->
-    <div class="card-footer bg-light">
-      <div class="row">
-        <div class="col-md-6">
-          <small class="text-muted">
-            <i class="fas fa-info-circle me-1"></i>
-            Dados processados em: {{ eeg_data.uploaded_at|date:"d/m/Y H:i" }}
-          </small>
-        </div>
-        <div class="col-md-6 text-end">
-          <small class="text-muted">
-            Taxa de amostragem: {{ eeg_data.sampling_rate }} Hz
-          </small>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 
-<!-- Scripts -->
-
-<style>
-  #power-plot .js-plotly-plot,
-  #topomap-container .js-plotly-plot,
-  #brain-waves-plot .js-plotly-plot {
-    height: 400px;
-  }
-
-  .table-hover tbody tr:hover {
-    background-color: rgba(13, 110, 253, 0.05);
-  }
-
-  .card-header {
-    border-radius: 0.5rem 0.5rem 0 0 !important;
-  }
-
-  .bg-purple {
-    background-color: #6f42c1 !important;
-  }
-  .spectral-plot .js-plotly-plot {
-    height: 400px;
-    min-width: 100%;
-  }
-</style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch("{% url 'analysis:get_events' eeg_data.id %}")
+            .then(response => response.json())
+            .then(data => {
+                const eventSelect = document.getElementById('event');
+                data.events.forEach(event => {
+                    const option = document.createElement('option');
+                    option.value = event;
+                    option.textContent = event;
+                    eventSelect.appendChild(option);
+                });
+            });
+    });
+</script>
 {% endblock %}

@@ -28,9 +28,9 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
-LOGOUT_REDIRECT_URL = 'analysis:home'  # Redireciona para a página de login
+LOGOUT_REDIRECT_URL = 'analysis:login'  # Redireciona para a página de login
 
-LOGIN_REDIRECT_URL = 'analysis:upload'  # Redireciona para a página de upload
+LOGIN_REDIRECT_URL = 'analysis:upload_eeg'  # Redireciona para a página de upload
 
 # Application definition
 # https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps

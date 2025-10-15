@@ -15,3 +15,8 @@ class EEGUploadForm(forms.ModelForm):
         widgets = {
             'sex': forms.Select(choices=EEGData.SEX_CHOICES)
         }
+
+class EEGFilterForm(forms.Form):
+    event = forms.CharField(label='Evento', required=False)
+    start_time = forms.CharField(label='Início (HH:MM:SS)', required=False)
+    end_time = forms.CharField(label='Fim (HH:MM:SS)', required=False)

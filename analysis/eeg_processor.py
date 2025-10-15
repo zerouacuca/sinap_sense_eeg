@@ -42,14 +42,32 @@ def butter_bandpass(lowcut, highcut, fs, order=4):
     b, a = butter(order, [low, high], btype='band')
     return b, a
 
-def process_eeg_data(eeg_data):
+def process_eeg_data(eeg_data, event=None, start_time=None, end_time=None):
     df = pd.read_csv(eeg_data.original_file.path)
     fs = eeg_data.sampling_rate
     
     # Ajustar o timestamp para o formato correto
-    df['Timestamp'] = df['Timestamp'] / 1000  # Converter de milissegundos para segundos
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='s')
+    df['Timestamp'] = pd.to_datetime(df['Timestamp'], unit='ms')
+
+    if event:
+        event_start_time = df[df['Marker value'] == event]['Timestamp'].iloc[0]
+        event_end_time = event_start_time + pd.to_timedelta(df[df['Marker value'] == event]['Marker timestamp'].iloc[0], unit='s')
+        
+        if start_time and end_time:
+            start_time_dt = pd.to_datetime(start_time, format='%H:%M:%S').time()
+            end_time_dt = pd.to_datetime(end_time, format='%H:%M:%S').time()
+
+            start_datetime = event_start_time.replace(hour=start_time_dt.hour, minute=start_time_dt.minute, second=start_time_dt.second)
+            end_datetime = event_start_time.replace(hour=end_time_dt.hour, minute=end_time_dt.minute, second=end_time_dt.second)
+            
+            df = df[(df['Timestamp'] >= start_datetime) & (df['Timestamp'] <= end_datetime)]
+        else:
+            df = df[(df['Timestamp'] >= event_start_time) & (df['Timestamp'] <= event_end_time)]
+    
     df['Timestamp'] = df['Timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S.%f')
+
+    # Limpar análises antigas
+    EEGChannelAnalysis.objects.filter(eeg_data=eeg_data).delete()
     
     for channel in df.columns[1:9]:
         data = df[channel].values

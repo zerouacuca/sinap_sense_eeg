@@ -1,9 +1,9 @@
 # analysis/views.py
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 import pandas as pd
 from .eeg_processor import process_eeg_data
-from .forms import EEGUploadForm
+from .forms import EEGUploadForm, EEGFilterForm
 from .models import EEGData, EEGChannelAnalysis
 import plotly.express as px
 import plotly.graph_objects as go
@@ -17,6 +17,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q , Sum
+import io
 
 def home(request):
     """
@@ -90,6 +91,13 @@ def upload_eeg(request):
     else:
         form = EEGUploadForm()
     return render(request, 'upload.html', {'form': form})
+
+def get_events(request, eeg_id):
+    eeg_data = EEGData.objects.get(id=eeg_id)
+    df = pd.read_csv(eeg_data.original_file.path)
+    events = df['Marker value'].dropna().unique().tolist()
+    return JsonResponse({'events': events})
+
 
 def analyze_sentiment(analyses, age=None, sex=None):
     """
@@ -248,23 +256,19 @@ def create_brain_waves_plot(analyses):
 
 @login_required
 def dashboard(request, eeg_id):
-    """
-    Dashboard principal de análise de dados EEG.
-    
-    Parâmetros:
-        eeg_id (int): ID do registro EEG no banco de dados
-    
-    Contexto Retornado:
-        - Vários gráficos (potência, topomapa, ondas cerebrais, espectrograma)
-        - Análise de sentimento
-        - Dados brutos e processados
-    """
     eeg_data = EEGData.objects.get(id=eeg_id)
-    age = eeg_data.age
-    sex = eeg_data.sex
+    filter_form = EEGFilterForm(request.POST or None)
+
+    event = request.POST.get('event')
+    start_time = request.POST.get('start_time')
+    end_time = request.POST.get('end_time')
+
+    if request.method == 'POST' and filter_form.is_valid():
+        process_eeg_data(eeg_data, event, start_time, end_time)
+
     analyses = EEGChannelAnalysis.objects.filter(eeg_data=eeg_data)
     bandas = ['delta', 'theta', 'alpha', 'beta', 'gamma']
-    
+
     # Gráfico de potências
     fig_power = px.line(title='Distribuição de Potência por Canal')
     for banda in bandas:
@@ -276,7 +280,7 @@ def dashboard(request, eeg_id):
         )
     
     # Análise de sentimentos
-    sentiment_analysis = analyze_sentiment(analyses,age,sex)
+    sentiment_analysis = analyze_sentiment(analyses, eeg_data.age, eeg_data.sex)
     # Criar gráfico de ondas cerebrais
     brain_waves_plot = create_brain_waves_plot(analyses)
     # Espectrograma médio
@@ -316,7 +320,8 @@ def dashboard(request, eeg_id):
         'topomap_plot': get_topomap(analyses, 'Alpha'),
         'sentiment_analysis': sentiment_analysis,
         'brain_waves_plot': brain_waves_plot,  # Novo gráfico de ondas cerebrais
-        'spectrogram_plot': spectrogram_plot
+        'spectrogram_plot': spectrogram_plot,
+        'filter_form': filter_form
     })
 
 def get_topomap(analyses, banda):
