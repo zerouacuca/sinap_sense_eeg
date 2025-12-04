@@ -243,8 +243,8 @@ def create_brain_waves_plot(analyses):
     
     # Adicionar linhas para cada banda
     # Limita o plot para os primeiros 5 segundos se a taxa de amostragem for 250Hz (1250 pontos)
-    limit = min(len(timestamps), 1250) 
-
+    limit = len(timestamps) ### CORREÇÃO: Define o limite para a duração completa da análise
+    
     for banda, signal in avg_signals.items():
         # Normalizar o sinal para melhor visualização
         if np.max(np.abs(signal)) > 0:
@@ -261,7 +261,7 @@ def create_brain_waves_plot(analyses):
     
     # Configurar layout
     fig.update_layout(
-        title='Sinais das Ondas Cerebrais (Primeiros 5s)',
+        title='Sinais das Ondas Cerebrais (Período Analisado)', ### CORREÇÃO: Título atualizado
         xaxis_title='Tempo',
         yaxis_title='Amplitude (Normalizada)',
         height=400,
