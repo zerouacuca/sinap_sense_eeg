@@ -3,7 +3,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 import pandas as pd
 from .eeg_processor import process_eeg_data
-from .forms import EEGUploadForm, EEGFilterForm
+from .forms import EEGUploadForm
 from .models import EEGData, EEGChannelAnalysis
 import plotly.express as px
 import plotly.graph_objects as go
@@ -17,7 +17,6 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.views import LoginView
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q , Sum
-import io
 
 def home(request):
     """
@@ -49,7 +48,6 @@ def home(request):
             'partners': ['UFPR', 'SEPT', 'Empresa X']
         }
     })
-
 
 
 class CustomLoginView(LoginView):
@@ -92,11 +90,23 @@ def upload_eeg(request):
         form = EEGUploadForm()
     return render(request, 'upload.html', {'form': form})
 
+@login_required
 def get_events(request, eeg_id):
+    """
+    Função para buscar eventos (markers) de um arquivo EEG.
+    """
     eeg_data = EEGData.objects.get(id=eeg_id)
-    df = pd.read_csv(eeg_data.original_file.path)
-    events = df['Marker value'].dropna().unique().tolist()
-    return JsonResponse({'events': events})
+    # Lendo o arquivo CSV para extrair eventos
+    try:
+        # Usamos io.BytesIO para ler o conteúdo do arquivo sem salvá-lo no disco local
+        # O Django FileField retorna um objeto que pode ser lido.
+        df = pd.read_csv(eeg_data.original_file.path)
+        # Assumindo que a coluna 'Marker value' contém os eventos
+        events = df['Marker value'].dropna().unique().tolist()
+        return JsonResponse({'events': events})
+    except Exception as e:
+        print(f"Erro ao ler eventos do CSV: {e}")
+        return JsonResponse({'events': []})
 
 
 def analyze_sentiment(analyses, age=None, sex=None):
@@ -168,12 +178,19 @@ def create_brain_waves_plot(analyses):
     Retorna:
         str: HTML do gráfico Plotly para incorporação em templates
     """
+    if not analyses:
+        return "<div class='alert alert-warning'>Nenhuma análise de canal disponível para plotar as ondas cerebrais.</div>"
+
     # Configuração inicial usando o primeiro canal como referência
     first_channel = analyses[0]
     
     # Extrair os dados de tempo do sinal raw
-    raw_data = json.loads(first_channel.raw_signal)
-    timestamps = raw_data['x']
+    try:
+        raw_data = json.loads(first_channel.raw_signal)
+        timestamps = np.array(raw_data['x'])
+        raw_signal = np.array(raw_data['y'])
+    except:
+        return "<div class='alert alert-danger'>Erro ao carregar dados brutos para plotagem.</div>"
     
     # Criar gráfico de linhas para as bandas cerebrais
     fig = go.Figure()
@@ -196,9 +213,6 @@ def create_brain_waves_plot(analyses):
         'gamma': (30, 40)
     }
     
-    # Obter os dados brutos do sinal
-    raw_signal = np.array(raw_data['y'])
-    
     # Calcular a média dos sinais de todos os canais para cada banda
     avg_signals = {}
     
@@ -210,9 +224,12 @@ def create_brain_waves_plot(analyses):
         # Para cada canal, extrair o sinal da banda e acumular
         for analysis in analyses:
             # Obter sinal bruto do canal
-            channel_data = json.loads(analysis.raw_signal)
-            channel_signal = np.array(channel_data['y'])
-            
+            try:
+                channel_data = json.loads(analysis.raw_signal)
+                channel_signal = np.array(channel_data['y'])
+            except:
+                continue
+
             # Aplicar filtro de banda
             fs = analysis.eeg_data.sampling_rate
             b, a = butter_bandpass(low, high, fs)
@@ -225,20 +242,26 @@ def create_brain_waves_plot(analyses):
         avg_signals[banda] = band_signals / len(analyses)
     
     # Adicionar linhas para cada banda
+    # Limita o plot para os primeiros 5 segundos se a taxa de amostragem for 250Hz (1250 pontos)
+    limit = min(len(timestamps), 1250) 
+
     for banda, signal in avg_signals.items():
         # Normalizar o sinal para melhor visualização
-        normalized_signal = signal / np.max(np.abs(signal)) * 0.5
-        
+        if np.max(np.abs(signal)) > 0:
+            normalized_signal = signal / np.max(np.abs(signal)) * 0.5
+        else:
+            normalized_signal = signal
+
         fig.add_trace(go.Scatter(
-            x=timestamps,  # Limitar para os primeiros 500 pontos para melhor visualização
-            y=normalized_signal,
+            x=timestamps[:limit],
+            y=normalized_signal[:limit],
             name=banda.capitalize(),
             line=dict(color=colors[banda], width=2)
         ))
     
     # Configurar layout
     fig.update_layout(
-        title='Sinais das Ondas Cerebrais',
+        title='Sinais das Ondas Cerebrais (Primeiros 5s)',
         xaxis_title='Tempo',
         yaxis_title='Amplitude (Normalizada)',
         height=400,
@@ -256,44 +279,75 @@ def create_brain_waves_plot(analyses):
 
 @login_required
 def dashboard(request, eeg_id):
-    eeg_data = EEGData.objects.get(id=eeg_id)
-    filter_form = EEGFilterForm(request.POST or None)
-
-    event = request.POST.get('event')
-    start_time = request.POST.get('start_time')
-    end_time = request.POST.get('end_time')
-
-    if request.method == 'POST' and filter_form.is_valid():
-        process_eeg_data(eeg_data, event, start_time, end_time)
-
-    analyses = EEGChannelAnalysis.objects.filter(eeg_data=eeg_data)
-    bandas = ['delta', 'theta', 'alpha', 'beta', 'gamma']
-
-    # Gráfico de potências
-    fig_power = px.line(title='Distribuição de Potência por Canal')
-    for banda in bandas:
-        values = [getattr(a, f'{banda}_power') for a in analyses]
-        fig_power.add_scatter(
-            x=[a.channel_name for a in analyses],
-            y=values,
-            name=banda.capitalize()
-        )
+    """
+    Dashboard principal de análise de dados EEG.
     
-    # Análise de sentimentos
-    sentiment_analysis = analyze_sentiment(analyses, eeg_data.age, eeg_data.sex)
-    # Criar gráfico de ondas cerebrais
+    Parâmetros:
+        eeg_id (int): ID do registro EEG no banco de dados
+    
+    Contexto Retornado:
+        - Gráficos de potência, topomapa e ondas cerebrais
+        - Análise de sentimento
+    """
+    eeg_data = EEGData.objects.get(id=eeg_id)
+    age = eeg_data.age
+    sex = eeg_data.sex
+    analyses = EEGChannelAnalysis.objects.filter(eeg_data=eeg_data)
+    
+    # Define as bandas de frequência a serem consideradas no cálculo total
+    bandas_totais = ['delta', 'theta', 'alpha', 'beta', 'gamma'] 
+    
+    # 1. Calcular a potência total (soma de todas as bandas em todos os canais)
+    total_global_power = 0
+    for analysis in analyses:
+        channel_total_power = sum(getattr(analysis, f'{b}_power') for b in bandas_totais)
+        total_global_power += channel_total_power
+    
+    # 2. Preparação dos dados para Potência Relativa por Canal
+    canais_potencia = []
+    
+    # Usamos uma lista para construir o HTML diretamente
+    potencia_texto_html = '<ul class="list-group list-group-flush">'
+
+    for analysis in analyses:
+        # Soma da potência de todas as bandas para o canal atual
+        channel_total_power = sum(getattr(analysis, f'{b}_power') for b in bandas_totais)
+        
+        # Potência Relativa do Canal = (Potência Total do Canal / Potência Total Global) * 100
+        relative_power = (channel_total_power / total_global_power) * 100 if total_global_power > 0 else 0
+
+        # Adiciona à string HTML formatada
+        potencia_texto_html += f"""
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span class="fw-bold">{analysis.channel_name}</span>
+                <span class="badge bg-primary rounded-pill">{relative_power:.1f}%</span>
+            </li>
+        """
+        canais_potencia.append((analysis.channel_name, relative_power))
+        
+    potencia_texto_html += '</ul>'
+    
+    # A variável 'power_plot' agora contém o texto formatado.
+    power_plot_output = potencia_texto_html
+
+    # 3. Geração do Gráfico de Barras Simples (DESCONTINUADO, agora é texto)
+    # Este código de plotagem foi removido pois a saída é apenas texto.
+    
+    # Análise de sentimentos (usa todas as bandas)
+    sentiment_analysis = analyze_sentiment(analyses,age,sex)
+    
+    # Criar gráfico de ondas cerebrais (usa todas as bandas)
     brain_waves_plot = create_brain_waves_plot(analyses)
     
     # Componentes do dashboard
     return render(request, 'dashboard.html', {
         'eeg_data': eeg_data,
         'analyses': analyses,
-        'bandas': [b.capitalize() for b in bandas],
-        'power_plot': fig_power.to_html(full_html=False),
+        'bandas': [b.capitalize() for b in bandas_totais],
+        'power_plot': power_plot_output, # Passando a string HTML para o template
         'topomap_plot': get_topomap(analyses, 'Alpha'),
         'sentiment_analysis': sentiment_analysis,
-        'brain_waves_plot': brain_waves_plot,  # Novo gráfico de ondas cerebrais
-        'filter_form': filter_form
+        'brain_waves_plot': brain_waves_plot,
     })
 
 def get_topomap(analyses, banda):
@@ -354,7 +408,6 @@ def update_topomap(request):
     return HttpResponse(
         get_topomap(analyses, banda)
     )
-
 
 def channel_detail(request, channel_id):
     analysis = EEGChannelAnalysis.objects.get(id=channel_id)

@@ -1,3 +1,5 @@
+# Conteúdo completo do seu Dockerfile
+
 # Use uma versão estável do Python
 FROM python:3.12
 
@@ -7,7 +9,7 @@ RUN mkdir /app
 # Define o diretório de trabalho
 WORKDIR /app
 
-# Variáveis de ambiente (removido ARG e ENV de senha para simplificar)
+# Variáveis de ambiente
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -21,7 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia os arquivos do projeto
 COPY . /app/
 
-# Executa migrações (o superuser será criado manualmente depois)
+# **CORREÇÃO:** Executa makemigrations (global) e migrações.
+RUN python manage.py makemigrations
 RUN python manage.py migrate
 
 # Expõe a porta do Django

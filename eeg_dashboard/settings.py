@@ -30,7 +30,8 @@ ALLOWED_HOSTS = []
 
 LOGOUT_REDIRECT_URL = 'analysis:login'  # Redireciona para a página de login
 
-LOGIN_REDIRECT_URL = 'analysis:upload_eeg'  # Redireciona para a página de upload
+# CORREÇÃO: O nome do padrão de URL agora é 'upload' e não 'upload_eeg'
+LOGIN_REDIRECT_URL = 'analysis:upload'  # Redireciona para a página de upload após login
 
 # Application definition
 # https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps
