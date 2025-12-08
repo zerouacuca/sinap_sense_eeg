@@ -8,7 +8,7 @@
                     <h3>Filtros</h3>
                 </div>
                 <div class="card-body">
-                    <form method="post" id="filter-form">
+                    <form method="post" action="{% url 'analysis:dashboard' eeg_data.id %}" id="filter-form">
                         {% csrf_token %}
                         <div class="mb-3">
                             <label for="event" class="form-label">Evento</label>
@@ -17,12 +17,12 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label for="start_time" class="form-label">Início (HH:MM:SS)</label>
-                            <input type="text" name="start_time" id="start_time" class="form-control">
+                            <label for="id_start_time" class="form-label">Início (HH:MM:SS)</label>
+                            {{ filter_form.start_time }} 
                         </div>
                         <div class="mb-3">
-                            <label for="end_time" class="form-label">Fim (HH:MM:SS)</label>
-                            <input type="text" name="end_time" id="end_time" class="form-control">
+                            <label for="id_end_time" class="form-label">Fim (HH:MM:SS)</label>
+                            {{ filter_form.end_time }}
                         </div>
                         <button type="submit" class="btn btn-primary">Aplicar Filtro</button>
                     </form>
@@ -32,20 +32,75 @@
         <div class="col-md-9">
             <div class="card">
                 <div class="card-header">
-                    <h3>Dashboard de Análise de EEG</h3>
+                    <h3>Dashboard de Análise EEG - {{ eeg_data.name|default:"Sem Nome" }}</h3>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            {{ power_plot|safe }}
+                    <div class="row g-4">
+                        <div class="col-xl-6">
+                            <div class="card h-100">
+                                <div class="card-header bg-secondary text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-chart-bar me-1"></i>
+                                        Distribuição de Potência Relativa por Canal (%)
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="power-plot">{{ power_plot|safe }}</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-6">
-                            {{ topomap_plot|safe }}
+                        <div class="col-xl-6">
+                            <div class="card h-100">
+                                <div
+                                    class="card-header bg-secondary text-white d-flex justify-content-between"
+                                >
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-map me-1"></i>
+                                        Mapa de Atividade Cerebral
+                                    </h5>
+                                    <div class="dropdown">
+                                        <button
+                                            class="btn btn-sm btn-secondary dropdown-toggle"
+                                            type="button"
+                                            id="dropdownMenuButton"
+                                            data-bs-toggle="dropdown"
+                                            aria-expanded="false"
+                                        >
+                                            Selecionar Banda
+                                        </button>
+                                        <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                                            {% for banda in bandas %}
+                                            <li>
+                                                <a
+                                                    class="dropdown-item"
+                                                    href="/update-topomap/?eeg_id={{eeg_data.id}}&banda={{banda}}"
+                                                >
+                                                    {{ banda }}
+                                                </a>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="topomap-container">{{ topomap_plot|safe }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="row mt-4">
                         <div class="col-md-12">
-                            {{ brain_waves_plot|safe }}
+                             <div class="card h-100">
+                                <div class="card-header bg-purple text-white">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fas fa-wave-square me-1"></i>
+                                        Distribuição de Ondas Cerebrais
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="brain-waves-plot">{{ brain_waves_plot|safe }}</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -56,10 +111,13 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // CORREÇÃO: O JS deve preencher o input com ID="event"
         fetch("{% url 'analysis:get_events' eeg_data.id %}")
             .then(response => response.json())
             .then(data => {
                 const eventSelect = document.getElementById('event');
+                // Limpa as opções existentes (apenas 'Todos')
+                
                 data.events.forEach(event => {
                     const option = document.createElement('option');
                     option.value = event;
