@@ -8,6 +8,11 @@
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
       <div class="mb-3">
+        <label class="form-label">{{ form.name.label }}</label>
+        {{ form.name }}
+        <small class="form-text text-muted">Ex: Teste Foco - Sujeito 001</small>
+      </div>
+      <div class="mb-3">
         <label class="form-label">{{ form.original_file.label }}</label>
         {{ form.original_file }}
       </div>

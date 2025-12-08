@@ -39,6 +39,7 @@
           <tr>
             <th>Data</th>
             <th>Arquivo</th>
+            <th>Nome da Análise</th>
             <th>Idade</th>
             <th>Sexo</th>
             <th>Status</th>
@@ -51,6 +52,7 @@
           <tr>
             <td>{{ record.uploaded_at|date:"d/m/Y H:i" }}</td>
             <td>{{ record.original_file.name|truncatechars:30 }}</td>
+            <td>{{ record.name|default:record.original_file.name|truncatechars:30 }}</td>
             <td>{{ record.age|default:"-" }}</td>
             <td>{{ record.get_sex_display|default:"-" }}</td>
             <td>

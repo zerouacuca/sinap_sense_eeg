@@ -5,8 +5,10 @@ from .models import EEGData
 class EEGUploadForm(forms.ModelForm):
     class Meta:
         model = EEGData
-        fields = ['original_file', 'sampling_rate', 'age', 'sex']  # Campos atualizados
+        # CORREÇÃO: 'name' está incluído para que o campo seja renderizado.
+        fields = ['name', 'original_file', 'sampling_rate', 'age', 'sex'] 
         labels = {
+            'name': 'Nome da Análise/Paciente',
             'original_file': 'Arquivo EEG (CSV)',
             'sampling_rate': 'Taxa de Amostragem (Hz)',
             'age': 'Idade do Paciente',

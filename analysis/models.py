@@ -9,6 +9,7 @@ class EEGData(models.Model):
         ('O', 'Outro'),
     ]
     
+    name = models.CharField(max_length=255, verbose_name='Nome da Análise', null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     original_file = models.FileField(upload_to='eeg_data/')
     sampling_rate = models.FloatField(default=250.0)
