@@ -73,7 +73,7 @@
                                             <li>
                                                 <a
                                                     class="dropdown-item"
-                                                    href="/update-topomap/?eeg_id={{eeg_data.id}}&banda={{banda}}"
+                                                    href="{% url 'analysis:update_topomap' %}?eeg_id={{eeg_data.id}}&banda={{banda}}"
                                                 >
                                                     {{ banda }}
                                                 </a>
@@ -111,12 +111,11 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // CORREÇÃO: O JS deve preencher o input com ID="event"
+        // Busca eventos do backend para preencher o filtro
         fetch("{% url 'analysis:get_events' eeg_data.id %}")
             .then(response => response.json())
             .then(data => {
                 const eventSelect = document.getElementById('event');
-                // Limpa as opções existentes (apenas 'Todos')
                 
                 data.events.forEach(event => {
                     const option = document.createElement('option');
@@ -124,7 +123,8 @@
                     option.textContent = event;
                     eventSelect.appendChild(option);
                 });
-            });
+            })
+            .catch(error => console.error('Erro ao carregar eventos:', error));
     });
 </script>
 {% endblock %}
